@@ -55,16 +55,17 @@ class SymbolExtractor(object):
 
     def _readNMOutput(self, filename: str, extra_flags: List[str]) -> str:
         """Read the output of the nm command applied to the binary"""
-        if self._binutils.nm_command is None:
+        if self._binutils.sqlelf_command is None:
             raise Exception(
-                "Binutils nm command unavailable. Unable to extract symbols."
+                "Binutils sqlelf command unavailable. Unable to extract symbols."
             )
 
         cmd: List[str] = [
             self._binutils.nm_command,
-            "--print-size",
-            "--size-sort",
-            "--radix=d",
+            "--sql ""select name from ELF_SYMBOLS ORDER BY size DESC"""#,
+           # "--print-size",
+            #"--size-sort",
+           # "--radix=d",
         ]
 
         cmd += extra_flags

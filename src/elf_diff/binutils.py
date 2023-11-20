@@ -26,13 +26,14 @@ import shutil
 
 
 class Binutils(object):
-    COMMANDS = ["objdump", "nm", "readelf", "size"]
+    COMMANDS = ["objdump", "nm", "readelf", "size", "sqlelf"]
 
     def __init__(self):
         self.objdump_command: Optional[str] = None
         self.nm_command: Optional[str] = None
         self.readelf_command: Optional[str] = None
         self.size_command: Optional[str] = None
+        self.sqlelf_command: Optional[str] = None
 
         self._bin_prefix: str = ""
         self.is_functional = True
@@ -107,9 +108,11 @@ class Binutils(object):
         self.findUtility("nm")
         self.findUtility("readelf")
         self.findUtility("size")
+        self.findUtility("sqlelf")
 
         print("Tools:")
         print(f"   objdump: {self.objdump_command}")
         print(f"   nm:      {self.nm_command}")
         print(f"   readelf:      {self.readelf_command}")
         print(f"   size:    {self.size_command}")
+        print(f"   sqlelf:    {self.sqlelf_command}")
