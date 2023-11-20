@@ -60,17 +60,21 @@ class SymbolExtractor(object):
                 "Binutils sqlelf command unavailable. Unable to extract symbols."
             )
 
-        cmd: List[str] = [
-            self._binutils.nm_command,
-            "--sql ""select name from ELF_SYMBOLS ORDER BY size DESC"""#,
+        cmd : List[str] = []
+        cmd.append(filename)
+        sql_command : List[str] = [
+            self._binutils.sqlelf_command,
+            "--sql \"select name from ELF_SYMBOLS ORDER BY size DESC\""#,
            # "--print-size",
             #"--size-sort",
            # "--radix=d",
         ]
 
-        cmd += extra_flags
 
-        cmd.append(filename)
+        #cmd += extra_flags
+
+        cmd.extend(sql_command)
+        print("cmd:", cmd)
 
         return runSystemCommand(cmd)
 
@@ -132,6 +136,7 @@ class SymbolExtractor(object):
         nm_output_demangled: str = self._readNMOutput(
             filename=filename, extra_flags=["-C"]
         )
+        print("nm_output::",nm_output_demangled)
 
         self.num_symbols_dropped = 0
         nm_regex_mangled = re.compile(
