@@ -29,6 +29,7 @@ from elf_diff.symbol_sizes import SymbolSizes
 from elf_diff.symbol_selection import SymbolSelection
 from elf_diff.binary_file_format import determineBinaryFileFormat
 from elf_diff.symbol_extractor import SymbolExtractor
+from sqlelf import sql
 
 import os
 from typing import Optional, Dict, List
@@ -74,7 +75,7 @@ class Binary(object):
         self.source_files: Dict[int, SourceFile] = {}
         self.symbols: Dict[str, Symbol] = {}
         self.num_symbols_dropped: int = 0
-
+        self.engine = sql.make_sql_engine(filename)
         self._initSymbols()
 
     def _verifyFilename(self):
@@ -93,6 +94,7 @@ class Binary(object):
             mangling=self._mangling,
             symbol_selection=self._symbol_selection,
             source_prefix=self._source_prefix,
+            engine = self.engine,
         )
         symbol_extractor.extractSymbols(self.filename)
 
@@ -104,11 +106,13 @@ class Binary(object):
 
     def _gatherSymbolInstructions(self) -> None:
         """Gather the instructions associated with a symbol"""
+        
         instruction_collector = InstructionCollector(symbols=self.symbols)
         instruction_collector.gatherSymbolInstructions(
             filename=self.filename,
             file_format=self.file_format,
             binutils=self._settings.binutils,
+            #engine = self.engine,
         )
 
         self.instructions_available: bool = len(instruction_collector.symbols) > 0

@@ -31,6 +31,7 @@ import sys
 from difflib import get_close_matches
 from difflib import SequenceMatcher
 from typing import List, Optional
+from sqlelf import sql
 
 
 def similar(a: str, b: str) -> float:
@@ -109,10 +110,16 @@ class BinaryPair(object):
             source_prefix=settings.new_source_prefix or settings.source_prefix,
         )
 
+        # new
+        self.engine = sql.make_sql_engine([self.pair_settings.old_binary_filename, self.pair_settings.new_binary_filename])
+        #self._sqlVerifyBinaryCompatibility()
+        # extract
+
         self._verifyBinaryCompatibility()
 
         self._prepareSymbols()
 
+        self._sqlPrepareSymbols([self.pair_settings.old_binary_filename, self.pair_settings.new_binary_filename])
         self._computeSizeChanges()
 
         self.persisting_symbol_names: List[str]
@@ -137,6 +144,19 @@ class BinaryPair(object):
             raise Exception(
                 "Binary formats incompatible. Old: %s, new: %s"
                 % (self.old_binary.file_format, self.new_binary.file_format)
+            )
+    
+    def _sqlVerifyBinaryCompatibility(self) -> None:
+        result = list(self.engine.execute("SELECT type, machine FROM ELF_HEADERS"))
+        if result[0]['type'] != result[1]['type']:
+            raise Exception(
+                "Binary formats incompatible. Old: %s, new: %s"
+                % (result[0]['type'], result[1]['type'])
+            )
+        if result[1]['machine'] != result[1]['machine']:
+            raise Exception(
+                "Binary formats incompatible. Old: %s, new: %s"
+                % (result[0]['machine'], result[1]['machine'])
             )
 
     def _summarizeSymbols(self) -> None:
@@ -196,6 +216,69 @@ class BinaryPair(object):
         self.appeared_symbol_names = sorted(
             self.new_symbol_names - self.old_symbol_names
         )
+
+    def _sqlPrepareSymbols(self, path) -> None:
+        """Prepare symbols"""
+        persisting_symbols = list(self.engine.execute(
+            """
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path
+            INTERSECT
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path
+            """,
+            {"o_path" : path[0],
+             "n_path" : path[1]},
+            )
+        )
+        disappeared_symbols = list(self.engine.execute(
+            """
+            
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path
+            EXCEPT
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path
+            """,
+            {"o_path" : path[0],
+             "n_path" : path[1]},
+            )
+        )
+        appeared_symbols = list(self.engine.execute(
+            """
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path
+            EXCEPT
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path
+            """,
+            {"n_path" : path[1],
+             "o_path" : path[0]},
+            )
+        )
+        
+        num_symbol_size_changes = list(self.engine.execute(
+            """
+            SELECT COUNT(*) AS size_changed_count
+            FROM (
+            SELECT old.name AS old_name, old.size AS old_size, new.size AS new_size
+            FROM ELF_SYMBOLS old
+            JOIN ELF_SYMBOLS new ON old.name = new.name
+            WHERE old.path = :o_path AND new.path = :n_path AND old.size <> new.size
+            ) AS size_changed_symbols;
+            """,
+            {"o_path" : path[0],
+             "n_path" : path[1]},
+            )
+        )
+        num_symbols_with_instruction_differences = list(self.engine.execute(
+            """
+            
+            """
+            )
+        )
+
+        print(persisting_symbols)
+        print(disappeared_symbols)
+        print(appeared_symbols)
+        print(num_symbol_size_changes)
+        print
+
+
 
     def _computeSizeChanges(self) -> None:
         """Compute the size changes of symbols from old and new binary"""

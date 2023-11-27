@@ -29,6 +29,7 @@ from typing import Type, Optional, Dict, List, Tuple
 import re
 import progressbar  # type: ignore # Make mypy ignore this module
 import sys
+from sqlelf import sql
 
 
 class SymbolExtractor(object):
@@ -39,6 +40,7 @@ class SymbolExtractor(object):
         mangling: Optional[Mangling],
         symbol_selection: SymbolSelection,
         source_prefix: Optional[List[str]],
+        engine: sql.SQLEngine,
     ):
         self._binutils = binutils
         self._symbol_type = symbol_type
@@ -53,30 +55,34 @@ class SymbolExtractor(object):
 
         self.debug_info_available: bool = False
 
+        self.engine = engine
+
     def _readNMOutput(self, filename: str, extra_flags: List[str]) -> str:
         """Read the output of the nm command applied to the binary"""
+        if self._binutils.nm_command is None:
+            raise Exception(
+                "Binutils nm command unavailable. Unable to extract symbols."
+            )
+
+        cmd: List[str] = [
+            self._binutils.nm_command,
+            "--print-size",
+            "--size-sort",
+            "--radix=d",
+        ]
+
+        cmd += extra_flags
+
+        cmd.append(filename)
+
+        return runSystemCommand(cmd)
+
+    def _readSQLELFOutput(self, filename: str) -> str:
         if self._binutils.sqlelf_command is None:
             raise Exception(
                 "Binutils sqlelf command unavailable. Unable to extract symbols."
             )
-
-        cmd : List[str] = []
-        cmd.append(filename)
-        sql_command : List[str] = [
-            self._binutils.sqlelf_command,
-            "--sql \"select name from ELF_SYMBOLS ORDER BY size DESC\""#,
-           # "--print-size",
-            #"--size-sort",
-           # "--radix=d",
-        ]
-
-
-        #cmd += extra_flags
-
-        cmd.extend(sql_command)
-        print("cmd:", cmd)
-
-        return runSystemCommand(cmd)
+        
 
     def _removeSourcePrefix(self, filename: str) -> str:
         if self._source_prefix is None:
@@ -127,6 +133,28 @@ class SymbolExtractor(object):
             symbol_name_with_mangling_state_unknown,
             False,
         )  # Neither explicit demangling, nor binutils demangling worked
+
+    def sqlExtractSymbols(self, filename: str) -> None:
+        result = list(self.engine.execute("SELECT * FROM ELF_SYMBOLS"))
+        print("Extracting symbols")
+        for line in progressbar.progressbar(
+            result, max_value=len(result)
+        ):
+            if line["demangled_name"] not in self.symbols.keys():
+                
+                new_symbol: Optional[Symbol] = self._generateSymbol(
+                    line["name"],
+                    line["demangled_name"],
+                    line["name"] == line["demangled_name"],
+                )
+                if new_symbol is not None:
+                    new_symbol.size = int(line["size"])
+                    new_symbol.type_ = line["type"]
+                    self.symbols[new_symbol.name_mangled] = new_symbol
+                else:
+                    self.symbols[line["demangled_name"]].size = int(line["size"])
+                    self.symbols[line["demangled_name"]].type_ = line["type"]
+            
 
     def extractSymbols(self, filename: str) -> None:
         """Gather the properties of a symbol"""
@@ -204,9 +232,10 @@ class SymbolExtractor(object):
                     if new_symbol is not None:
                         new_symbol.size = int(symbol_size_str)
                         new_symbol.type_ = symbol_type
-
                         if source_filename is not None:
                             source_id = self._file_to_id[source_filename]
+                            print("source_id:",source_id)
+                            print("fielname::",source_filename)
                             new_symbol.source_id = source_id
                             new_symbol.source_line = line_number
 
