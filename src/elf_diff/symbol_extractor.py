@@ -135,7 +135,7 @@ class SymbolExtractor(object):
         )  # Neither explicit demangling, nor binutils demangling worked
 
     def sqlExtractSymbols(self, filename: str) -> None:
-        result = list(self.engine.execute("""SELECT * FROM ELF_SYMBOLS where path = :path AND (type = 'FUNC' OR type = 'OBJECT')""", {"path" : filename}))
+        result = list(self.engine.execute("""SELECT * FROM ELF_SYMBOLS where path = :path AND size != 0 AND (type = 'FUNC' OR type = 'OBJECT')""", {"path" : filename}))
         print("Extracting symbols")
         for line in progressbar.progressbar(
             result, max_value=len(result)

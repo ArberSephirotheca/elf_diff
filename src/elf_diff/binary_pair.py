@@ -221,9 +221,9 @@ class BinaryPair(object):
         self.new_symbol_names = set(self.new_binary.symbols.keys())
         self.persisting_symbol_names = [item['demangled_name'] for item in self.engine.execute(
             """
-            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND (old.type = 'FUNC' OR old.type = 'OBJECT')
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND old.size != 0  AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             INTERSECT
-            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND (new.type = 'FUNC' OR new.type = 'OBJECT')
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND  new.size != 0 AND (new.type = 'FUNC' OR new.type = 'OBJECT')
             """,
             {"o_path" : path[0],
              "n_path" : path[1]},
@@ -232,18 +232,18 @@ class BinaryPair(object):
         self.disappeared_symbol_names = [item['demangled_name'] for item in self.engine.execute(
             """
             
-            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND (old.type = 'FUNC' OR old.type = 'OBJECT')
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND old.size != 0 AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             EXCEPT
-            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND (new.type = 'FUNC' OR new.type = 'OBJECT')
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND new.size != 0 AND (new.type = 'FUNC' OR new.type = 'OBJECT')
             """,
             {"o_path" : path[0],
              "n_path" : path[1]},
             )]
         self.appeared_symbol_names = [item['demangled_name'] for item in self.engine.execute(
             """
-            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND (new.type = 'FUNC' OR new.type = 'OBJECT')
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND new.size != 0 AND (new.type = 'FUNC' OR new.type = 'OBJECT')
             EXCEPT
-            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND (old.type = 'FUNC' OR old.type = 'OBJECT')
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND old.size != 0  AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             """,
             {"n_path" : path[1],
              "o_path" : path[0]},
@@ -256,7 +256,7 @@ class BinaryPair(object):
             SELECT old.name AS old_name, old.size AS old_size, new.size AS new_size
             FROM ELF_SYMBOLS old
             JOIN ELF_SYMBOLS new ON old.name = new.name
-            WHERE old.path = :o_path AND new.path = :n_path AND old.size <> new.size AND (old.type = 'FUNC' OR old.type = 'OBJECT')
+            WHERE old.path = :o_path AND new.path = :n_path AND old.size <> new.size AND (old.size != 0 OR new.size != 0) AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             ) AS size_changed_symbols;
             """,
             {"o_path" : path[0],
