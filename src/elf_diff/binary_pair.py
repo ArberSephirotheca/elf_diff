@@ -262,13 +262,6 @@ class BinaryPair(object):
             {"o_path" : path[0],
              "n_path" : path[1]},
             )]
-        
-        num_symbols_with_instruction_differences = list(self.engine.execute(
-            """
-            
-            """
-            )
-        )
 
         print(self.persisting_symbol_names)
         print("disappeared_symbol_names",self.disappeared_symbol_names)
