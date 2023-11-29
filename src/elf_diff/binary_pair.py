@@ -112,11 +112,9 @@ class BinaryPair(object):
 
         # new
         self.engine = sql.make_sql_engine([self.pair_settings.old_binary_filename, self.pair_settings.new_binary_filename])
-        #self._sqlVerifyBinaryCompatibility()
-        # extract
+        #self._verifyBinaryCompatibility()
 
-        self._verifyBinaryCompatibility()
-
+        self._sqlVerifyBinaryCompatibility()
         #self._prepareSymbols()
 
         self._sqlPrepareSymbols([self.pair_settings.old_binary_filename, self.pair_settings.new_binary_filename])

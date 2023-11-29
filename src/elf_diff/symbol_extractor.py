@@ -136,7 +136,6 @@ class SymbolExtractor(object):
 
     def sqlExtractSymbols(self, filename: str) -> None:
         result = list(self.engine.execute("""SELECT * FROM ELF_SYMBOLS where path = :path AND (type = 'FUNC' OR type = 'OBJECT')""", {"path" : filename}))
-        print(result)
         print("Extracting symbols")
         for line in progressbar.progressbar(
             result, max_value=len(result)
@@ -144,7 +143,7 @@ class SymbolExtractor(object):
             if line["demangled_name"] not in self.symbols.keys():
                 
                 new_symbol: Optional[Symbol] = self._generateSymbol(
-                    line["name"],
+                    line["demangled_name"],
                     line["demangled_name"],
                     line["name"] == line["demangled_name"],
                 )
@@ -157,7 +156,6 @@ class SymbolExtractor(object):
                     self.symbols[line["demangled_name"]].type_ = line["type"]
             
 
-        print("self.symbols::",self.symbols)
         
     def extractSymbols(self, filename: str) -> None:
         """Gather the properties of a symbol"""
@@ -167,7 +165,6 @@ class SymbolExtractor(object):
         nm_output_demangled: str = self._readNMOutput(
             filename=filename, extra_flags=["-C"]
         )
-        print("nm_output::",nm_output_demangled)
 
         self.num_symbols_dropped = 0
         nm_regex_mangled = re.compile(
@@ -237,8 +234,6 @@ class SymbolExtractor(object):
                         new_symbol.type_ = symbol_type
                         if source_filename is not None:
                             source_id = self._file_to_id[source_filename]
-                            print("source_id:",source_id)
-                            print("fielname::",source_filename)
                             new_symbol.source_id = source_id
                             new_symbol.source_line = line_number
 

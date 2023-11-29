@@ -22,6 +22,7 @@ from elf_diff.symbol import Symbol
 from elf_diff.system_command import runSystemCommand
 from elf_diff.binutils import Binutils
 from elf_diff.error_handling import warning
+from sqlelf import sql
 
 from typing import Optional, Dict, List
 import re
@@ -169,4 +170,27 @@ class InstructionCollector(object):
                     self.registerSourceLine(unified_line)
 
         if self.cur_symbol:
+            self._submitSymbol()
+
+    def sqlGatherSymbolInstructions(
+        self, filename: str, file_format: Optional[str], binutils: Binutils, engine: sql.SQLEngine
+    ) -> None:
+        for symbol_name_mangled in progressbar.progressbar(self.symbols.keys()):
+            self.cur_symbol = self.symbols[symbol_name_mangled]
+            lines = list(engine.execute("""
+                    SELECT ES.name, mnemonic, operands
+                    FROM ELF_SYMBOLS ES
+                    JOIN ELF_INSTRUCTIONS EI
+                    ON EI.PATH = ES.PATH
+                    WHERE
+                    EI.ADDRESS >= ES.VALUE
+                    AND EI.ADDRESS <= ES.VALUE + ES.SIZE
+                    AND ES.demangled_name = :symbol_name_mangled
+                    ORDER BY EI.ADDRESS ASC;
+                    """, {"symbol_name_mangled": symbol_name_mangled}))
+            for line in lines:
+                instruction = line['mnemonic'] + ' ' + line['operands']
+                self.n_instruction_lines += 1
+                self._bufferLine(instruction)
+            
             self._submitSymbol()

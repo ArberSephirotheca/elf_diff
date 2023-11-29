@@ -108,13 +108,12 @@ class Binary(object):
         """Gather the instructions associated with a symbol"""
         
         instruction_collector = InstructionCollector(symbols=self.symbols)
-        instruction_collector.gatherSymbolInstructions(
+        instruction_collector.sqlGatherSymbolInstructions(
             filename=self.filename,
             file_format=self.file_format,
             binutils=self._settings.binutils,
-            #engine = self.engine,
+            engine = self.engine,
         )
-
         self.instructions_available: bool = len(instruction_collector.symbols) > 0
 
         if instruction_collector.n_instruction_lines == 0:
