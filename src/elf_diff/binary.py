@@ -75,7 +75,7 @@ class Binary(object):
         self.source_files: Dict[int, SourceFile] = {}
         self.symbols: Dict[str, Symbol] = {}
         self.num_symbols_dropped: int = 0
-        self.engine = sql.make_sql_engine(filename)
+        self.engine = sql.make_sql_engine([filename])
         self._initSymbols()
 
     def _verifyFilename(self):
@@ -96,8 +96,8 @@ class Binary(object):
             source_prefix=self._source_prefix,
             engine = self.engine,
         )
-        symbol_extractor.extractSymbols(self.filename)
-
+        #symbol_extractor.extractSymbols(self.filename)
+        symbol_extractor.sqlExtractSymbols(self.filename)
         self.symbols = symbol_extractor.symbols
         self.num_symbols_dropped = symbol_extractor.num_symbols_dropped
         self.source_files = symbol_extractor.source_files

@@ -135,7 +135,8 @@ class SymbolExtractor(object):
         )  # Neither explicit demangling, nor binutils demangling worked
 
     def sqlExtractSymbols(self, filename: str) -> None:
-        result = list(self.engine.execute("SELECT * FROM ELF_SYMBOLS"))
+        result = list(self.engine.execute("""SELECT * FROM ELF_SYMBOLS where path = :path AND (type = 'FUNC' OR type = 'OBJECT')""", {"path" : filename}))
+        print(result)
         print("Extracting symbols")
         for line in progressbar.progressbar(
             result, max_value=len(result)
@@ -156,6 +157,8 @@ class SymbolExtractor(object):
                     self.symbols[line["demangled_name"]].type_ = line["type"]
             
 
+        print("self.symbols::",self.symbols)
+        
     def extractSymbols(self, filename: str) -> None:
         """Gather the properties of a symbol"""
         nm_output_mangled: str = self._readNMOutput(

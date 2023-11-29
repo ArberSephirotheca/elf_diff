@@ -117,7 +117,7 @@ class BinaryPair(object):
 
         self._verifyBinaryCompatibility()
 
-        self._prepareSymbols()
+        #self._prepareSymbols()
 
         self._sqlPrepareSymbols([self.pair_settings.old_binary_filename, self.pair_settings.new_binary_filename])
         self._computeSizeChanges()
@@ -219,52 +219,52 @@ class BinaryPair(object):
 
     def _sqlPrepareSymbols(self, path) -> None:
         """Prepare symbols"""
-        persisting_symbols = list(self.engine.execute(
+        self.old_symbol_names = set(self.old_binary.symbols.keys())
+        self.new_symbol_names = set(self.new_binary.symbols.keys())
+        self.persisting_symbol_names = [item['demangled_name'] for item in self.engine.execute(
             """
-            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             INTERSECT
-            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND (new.type = 'FUNC' OR new.type = 'OBJECT')
             """,
             {"o_path" : path[0],
              "n_path" : path[1]},
-            )
-        )
-        disappeared_symbols = list(self.engine.execute(
+            )]
+        
+        self.disappeared_symbol_names = [item['demangled_name'] for item in self.engine.execute(
             """
             
-            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             EXCEPT
-            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND (new.type = 'FUNC' OR new.type = 'OBJECT')
             """,
             {"o_path" : path[0],
              "n_path" : path[1]},
-            )
-        )
-        appeared_symbols = list(self.engine.execute(
+            )]
+        self.appeared_symbol_names = [item['demangled_name'] for item in self.engine.execute(
             """
-            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path
+            SELECT new.demangled_name FROM ELF_SYMBOLS new WHERE new.path = :n_path AND (new.type = 'FUNC' OR new.type = 'OBJECT')
             EXCEPT
-            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path
+            SELECT old.demangled_name FROM ELF_SYMBOLS old WHERE old.path = :o_path AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             """,
             {"n_path" : path[1],
              "o_path" : path[0]},
-            )
-        )
+            )]
         
-        num_symbol_size_changes = list(self.engine.execute(
+        num_symbol_size_changes = [item['size_changed_count'] for item in self.engine.execute(
             """
             SELECT COUNT(*) AS size_changed_count
             FROM (
             SELECT old.name AS old_name, old.size AS old_size, new.size AS new_size
             FROM ELF_SYMBOLS old
             JOIN ELF_SYMBOLS new ON old.name = new.name
-            WHERE old.path = :o_path AND new.path = :n_path AND old.size <> new.size
+            WHERE old.path = :o_path AND new.path = :n_path AND old.size <> new.size AND (old.type = 'FUNC' OR old.type = 'OBJECT')
             ) AS size_changed_symbols;
             """,
             {"o_path" : path[0],
              "n_path" : path[1]},
-            )
-        )
+            )]
+        
         num_symbols_with_instruction_differences = list(self.engine.execute(
             """
             
@@ -272,11 +272,10 @@ class BinaryPair(object):
             )
         )
 
-        print(persisting_symbols)
-        print(disappeared_symbols)
-        print(appeared_symbols)
+        print(self.persisting_symbol_names)
+        print("disappeared_symbol_names",self.disappeared_symbol_names)
+        print(self.appeared_symbol_names)
         print(num_symbol_size_changes)
-        print
 
 
 
